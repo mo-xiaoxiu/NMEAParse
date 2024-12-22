@@ -69,7 +69,6 @@ g++ main.cpp -std=c++17 -lNMEAParser -g
 
 运行结果：
 ```
-32.9697
 locationMode: 3
 utcTime: 946671424
 latitude: 32.9697
@@ -109,3 +108,59 @@ satelliteID: 18
 
 1. 需要包含头文件`NMEAParser.h`
 2. 编译时需要链接`libNMEAParser.so`，如果有指定动态库和头文件路径需要在你的`CMake`或编译指令中指定路径
+3. 如果你想使用`dumpLocationInfo`进行定制化打印，只需要继承`NMEAParser`并重写`dumpLocationInfo`即可
+```cpp title="override dumpLocationInfo"
+#include <iostream>
+#include <optional>
+#include <memory>
+#include <NMEAParser.h>
+
+class MyNMEALocationInfoPrint : public NmeaParser::NMEAParser {
+public:
+    void dumpLocationInfo(std::optional<NMEAData>& data) {
+        std::cout << "this is my own print." << std::endl;
+        if (data->rmc) {
+            std::cout << data->rmc->latitude << std::endl;
+        }
+    }
+};
+
+int main() {
+    std::string rmcNmea = "$GNRMC,041704.000,A,2935.21718,N,10631.58906,E,0.00,172.39,071124,,,A*7E";
+    std::string gsvNmea= "$GPGSV,4,1,13,02,09,305,24,10,72,161,34,12,19,048,32,21,15,288,18*7A";
+
+    NmeaParser::NMEAParser parse;
+    
+    auto data = parse.parseNMEAMessage(rmcNmea);
+    parse.dumpLocationInfo(data);
+
+    // data = parse.parseNMEAMessage(gsvNmea);
+    // parse.dumpLocationInfo(data);
+
+    std::cout << "---------------------" << std::endl;
+
+    std::unique_ptr<NmeaParser::NMEAParser> np = std::make_unique<MyNMEALocationInfoPrint>();
+    np->dumpLocationInfo(data);
+
+    return 0;
+}
+```
+编译运行如下：
+```shell
+locationMode: 3
+utcTime: 946671424
+latitude: 32.9697
+latHemisphere: N
+longitude: 116.128
+lonHemisphere: E
+speed: 0
+course: 172.39
+date: 071124
+variation: 0
+variationDirection: E
+mode: A
+---------------------
+this is my own print.
+32.9697
+```
+**注意：在使用诸如`data->rmc`时应先判断是否为空！！！**

@@ -126,8 +126,7 @@ public:
         NMEAParser::NMEAData data;
         if (nmeaMessage.substr(3, 3) == "RMC") {
             auto rmc = parseRMC(nmeaMessage);
-            if (rmc) {data.rmc = *rmc;
-            std::cout << data.rmc->latitude << std::endl;}
+            if (rmc) data.rmc = *rmc;
         } else if (nmeaMessage.substr(3, 3) == "GGA") {
             auto gga = parseGGA(nmeaMessage);
             if (gga) data.gga = *gga;
