@@ -34,17 +34,15 @@ struct RMCData {
 struct GGAData {
     LocationMode locationMode;
     time_t utcTime;         // UTC时间，格式为HHMMSS.SSS
-    char status;                 // 定位状态，'0'=无定位，'1'=定位有效
     double latitude;             // 纬度
     char latHemisphere;          // 纬度半球，'N'=北纬，'S'=南纬
     double longitude;            // 经度
     char lonHemisphere;          // 经度半球，'E'=东经，'W'=西经
+    char status;                 // 定位状态，'0'=无定位，'1'=定位有效
     int satellites;              // 正在使用的卫星数量
     double hdop;                 // 水平精度因子
-    double altitude;             // 相对于平均海平面的海拔高度
-    char altitudeUnit;           // 海拔高度单位，'M'=米
-    double geoidSeparation;       // 地球椭球面和大地水准面之间的分离值
-    char geoidSeparationUnit;     // 分离值单位，'M'=米
+    double altitude;             // 海拔高度
+    double WGaltitude;           // 相对大地水准面，'M'=米
     int ageDifferential;         // 差分数据的年龄
     std::string stationID;        // 差分站ID
 };
@@ -64,6 +62,7 @@ struct SatelliteInfo {
 
 // 定义GSV数据结构体
 struct GSVData {
+    LocationMode locationMode;
     int totalMessages;       // 总消息数
     int messageNumber;       // 当前消息编号
     int satelliteCount;      // 可见卫星总数
@@ -92,6 +91,8 @@ public:
     std::optional<NMEAData> parseNMEAMessage(const std::string& nmeaMessage);
 
     virtual void dumpLocationInfo(std::optional<NMEAData> &op);
+
+    virtual void saveLocationInfo(std::optional<NMEAData> &op, const std::string& fp = "./output.txt");
 
 private:
     class Impl;

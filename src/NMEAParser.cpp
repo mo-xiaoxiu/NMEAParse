@@ -2,6 +2,7 @@
 #include <iostream>
 #include <sstream>
 #include <iomanip>
+#include <cmath>
 
 namespace NmeaParser{
 
@@ -24,15 +25,20 @@ namespace NmeaParser{
 template<typename T>
 T stringToNumber(const std::string& str, T defaultValue) {
     if (str.empty()) return defaultValue;
-    try {
-        return std::stoi(str);
-    } catch (const std::invalid_argument&) {
+    if (std::is_same<T, int>::value) {
         try {
-            return std::stod(str);
-        } catch (...) {
+            return std::stoi(str);
+        } catch (const std::invalid_argument&) {
+            return defaultValue;
+        }
+    } else if (std::is_same<T, double>::value) {
+        try {
+            return std::atof(str.c_str());
+        } catch (const std::invalid_argument& e) {
             return defaultValue;
         }
     }
+    return defaultValue;
 }
 
 class NMEAParser::Impl {
@@ -62,10 +68,9 @@ private:
     }
 
     auto assignLocationMode(const std::string& token) {
-        std::string tmpMode = token.substr(1, 2);
-        if (tmpMode == "GP") {
+        if (token.find("GP") != std::string::npos) {
             return LocationMode::GPS;
-        } else if (tmpMode == "BD") {
+        } else if (token.find("BD") != std::string::npos) {
             return LocationMode::BD;
         } else {
             return LocationMode::GN;
@@ -73,23 +78,28 @@ private:
     }
 
     double convertDMStoDD(const std::string& dms, char hemisphere) {
-        std::istringstream iss(dms);
-        int degrees;
-        double minutes;
-        // 用于读取度与分之间的分隔符
-        char temp;
-
-        // 读取度和分
-        iss >> degrees >> temp >> minutes;
-        // 将分转换为度的小数部分
-        minutes /= 60.0;
+        double dms2D = stringToNumber<double>(dms, 0.0);
+        if (dms2D == 0.0) {
+            return dms2D;
+        }
+        double d;
+        double m = 100.0 * modf(dms2D / 100.0, &d);
+        dms2D = d + m / 60.0;
 
         // 根据半球符号调整符号
-        if (hemisphere == 'S' || hemisphere == 'W') {
-            return -(degrees + minutes) / 100;
-        } else {
-            return (degrees + minutes) / 100;
+        if (hemisphere == 'S') {
+            return (dms2D > 90.0) ? 0.0 : -dms2D;
+        } else if (hemisphere == 'N'){
+            return (dms2D > 90.0) ? 0.0 : dms2D;
         }
+
+        if (hemisphere == 'W') {
+            return (dms2D > 360.0) ? (dms2D - 360) : -dms2D;
+        } else if (hemisphere == 'E'){
+            return (dms2D > 360.0) ? (dms2D - 360) : dms2D;
+        }
+
+        return 0.0;
     }
 
     
@@ -176,7 +186,6 @@ private:
             rmcData.mode = !tokens[12].empty() ? tokens[12][0] : 'A';
         );
 
-
         return rmcData;
     }
 
@@ -203,20 +212,18 @@ private:
         CATCH_AND_HANDLE_EXCEPTIONS(
             ggaData.locationMode = assignLocationMode(tokens[0]);
             ggaData.utcTime = convertToTimestamp(std::string(tokens[1]));
-            ggaData.status = !tokens[2].empty() ? tokens[2][0] : 'V';
             // ggaData.latitude = !tokens[3].empty() ? std::stof(tokens[3]) : 0;
-            ggaData.latHemisphere = !tokens[4].empty() ? tokens[4][0] : 'N';
-            ggaData.latitude = convertDMStoDD(tokens[3], ggaData.latHemisphere);
-            ggaData.lonHemisphere = !tokens[6].empty() ? tokens[6][0] : 'E';
+            ggaData.latHemisphere = !tokens[3].empty() ? tokens[3][0] : 'N';
+            ggaData.latitude = convertDMStoDD(tokens[2], ggaData.latHemisphere);
+            ggaData.lonHemisphere = !tokens[5].empty() ? tokens[5][0] : 'E';
             // ggaData.longitude = !tokens[5].empty() ? std::stof(tokens[5]) : 0;
-            ggaData.longitude = convertDMStoDD(tokens[5], ggaData.lonHemisphere);
+            ggaData.longitude = convertDMStoDD(tokens[4], ggaData.lonHemisphere);
+            ggaData.status = stringToNumber<int>(tokens[6], 0);
             ggaData.satellites = stringToNumber<int>(tokens[7], 0);
             ggaData.hdop = stringToNumber<double>(tokens[8], 0);
             ggaData.altitude = stringToNumber<double>(tokens[9], 0);
-            ggaData.altitudeUnit = !tokens[10].empty() ? tokens[10][0] : 'M';
-            ggaData.geoidSeparation = stringToNumber<double>(tokens[11], 0);
-            ggaData.geoidSeparationUnit = !tokens[12].empty() ? tokens[12][0] : 'M';
-            ggaData.ageDifferential = stringToNumber<int>(tokens[13], 0);
+            ggaData.WGaltitude = stringToNumber<double>(tokens[10], 0);;
+            ggaData.ageDifferential = stringToNumber<int>(tokens[11], 0);
             ggaData.stationID = tokens[14];
         );
 
@@ -237,12 +244,13 @@ private:
         }
 
         GSVData gsvData;
+        gsvData.locationMode = assignLocationMode(tokens[0]);
         gsvData.totalMessages = stringToNumber<int>(tokens[1], 0);
         gsvData.messageNumber = stringToNumber<int>(tokens[2], 0);
         gsvData.satelliteCount = stringToNumber<int>(tokens[3], 0);
 
         // 根据NMEA 0183标准，卫星信息从第4个字段开始，每4个字段为一组
-        for (size_t i = 0; i + 3 < tokens.size(); i += 4) {
+        for (size_t i = 1; i + 3 < tokens.size(); i += 4) {
             SatelliteInfo satellite;
             satellite.satelliteID = stringToNumber<int>(tokens[i + 3], 0);
             if (!tokens[i + 4].empty()) {
@@ -294,16 +302,20 @@ void NMEAParser::dumpLocationInfo(std::optional<NMEAData> &op) {
                   << "variationDirection: " << op->rmc->variationDirection << std::endl
                   << "mode: " << op->rmc->mode << std::endl;
     } else if(op->gsv) {
-        std::cout << "totalMessages: " << (int)op->gsv->totalMessages << std::endl
+        std::cout << "locationMode: " << (int)op->gsv->locationMode << std::endl
+                  << "totalMessages: " << (int)op->gsv->totalMessages << std::endl
                   << "messageNumber: " << op->gsv->messageNumber << std::endl
                   << "satelliteCount: " << op->gsv->satelliteCount << std::endl;
         for(auto &s: op->gsv->satellites) {
             std::cout << "satelliteID: " << s.satelliteID << std::endl << "\t"
                       << "elevation: " << s.elevation << std::endl << "\t"
                       << "azimuth: " << s.azimuth << std::endl << "\t"
-                      << "signalToNoiseRatio: " << std::endl;
+                      << "signalToNoiseRatio: " << s.signalToNoiseRatio << std::endl;
         }
     }
+}
+
+void NMEAParser::saveLocationInfo(std::optional<NMEAData> &op, const std::string& fp ) {
 }
 
 }
