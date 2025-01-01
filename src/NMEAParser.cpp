@@ -3,6 +3,7 @@
 #include <sstream>
 #include <iomanip>
 #include <cmath>
+#include <thread>
 
 namespace NmeaParser{
 
@@ -63,7 +64,6 @@ private:
         }
 
         unsigned char givenChecksum = static_cast<unsigned char>(std::stoi(checksumHex, nullptr, 16));
-
         return calculatedChecksum == givenChecksum;
     }
 
@@ -282,6 +282,36 @@ NMEAParser::~NMEAParser() = default;
 
 std::optional<NMEAParser::NMEAData> NMEAParser::parseNMEAMessage(const std::string& nmeaMessage) {
     return pImpl->parseNMEA(nmeaMessage);
+}
+
+void NMEAParser::parseNMEAMessageAsync(const std::string& nmeaMessage) {
+    future = std::async(std::launch::async, [this, &nmeaMessage]() -> std::optional<NMEAParser::NMEAData> {
+        return pImpl->parseNMEA(nmeaMessage);
+    });
+}
+
+std::optional<NMEAParser::NMEAData> NMEAParser::getFutureParserNMEAAsync() {
+    if (future.valid()) {
+        return future.get();
+    }
+    return std::nullopt;
+}
+
+bool NMEAParser::setParserCallback(ParserCallback &&pc) {
+    if (pc) {
+        callback = std::move(pc);
+    }
+    return false;
+}
+
+bool NMEAParser::startParse(const std::string& nmeaMessage) {
+    if (callback) {
+        std::thread([this, &nmeaMessage]() {
+            auto result = parseNMEAMessage(nmeaMessage);
+            callback(result);
+        }).join();
+    }
+    return false;
 }
 
 void NMEAParser::dumpLocationInfo(std::optional<NMEAData> &op) {

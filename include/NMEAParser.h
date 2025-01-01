@@ -6,6 +6,8 @@
 #include <optional>
 #include <vector>
 #include <ctime>
+#include <future>
+#include <functional>
 
 namespace NmeaParser{
 
@@ -85,10 +87,20 @@ public:
         std::optional<VTGData> vtg;
     };
 
+    using ParserCallback = std::function<void(std::optional<NMEAData>&)>;
+
     NMEAParser();
     ~NMEAParser();
 
     std::optional<NMEAData> parseNMEAMessage(const std::string& nmeaMessage);
+
+    void parseNMEAMessageAsync(const std::string& nmeaMessage);
+
+    std::optional<NMEAData> getFutureParserNMEAAsync();
+
+    bool setParserCallback(ParserCallback &&pc);
+
+    bool startParse(const std::string& nmeaMessage);
 
     virtual void dumpLocationInfo(std::optional<NMEAData> &op);
 
@@ -97,6 +109,8 @@ public:
 private:
     class Impl;
     std::unique_ptr<Impl> pImpl;
+    std::future<std::optional<NMEAData>> future;
+    ParserCallback callback;
 };
 
 }

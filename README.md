@@ -357,3 +357,83 @@ Longitude,Latitude,Elevation,name
     <img src="https://myblog-1308923350.cos.ap-guangzhou.myqcloud.com/img/20241223212210.png">
 </div>
 可以看到还是有一点位置偏差的，为C++使用`atof`转换的精度缺失带来的问题。后续看如何改进精度。
+
+## 异步解析
+该项目还提供了异步解析NMEA报文的接口，分别是以下两种使用方式：
+1. 使用`parseNMEAMessageAsync`接口将NMEA原始报文传入，并调用`getFutureParserNMEAAsync`获取接口，实现上是使用`std::future`来获取异步执行的结果。使用示例如下：
+```cpp
+#include <iostream>
+#include <optional>
+#include <fstream>
+#include <string>
+#include <NMEAParser.h>
+
+int main() {
+    std::string rmcNmea = "$GNRMC,041704.000,A,2935.21718,N,10631.58906,E,0.00,172.39,071124,,,A*7E";
+    std::string gsvNmea= "$GPGSV,4,1,13,02,09,305,24,10,72,161,34,12,19,048,32,21,15,288,18*7A";
+
+    NmeaParser::NMEAParser parse;
+
+    std::cout << "--------------------" << std::endl;
+
+    parse.parseNMEAMessageAsync(rmcNmea);
+    auto data = parse.getFutureParserNMEAAsync();
+
+    parse.dumpLocationInfo(data);
+
+    return 0;
+}
+```
+编译运行结果如下：
+```shell
+--------------------
+locationMode: 3
+utcTime: 946671424
+latitude: 29.587
+latHemisphere: N
+longitude: 106.526
+lonHemisphere: E
+speed: 0
+course: 172.39
+date: 071124
+variation: 0
+variationDirection: E
+mode: A
+```
+2. 使用`setParserCallback`接口设置一个入参为`std::optional<NmeaParser::NMEAParser::NMEAData>&`的回调，并调用`startParse`接口传入NMEA原始报文进行异步解析，该接口会使用`std::thread`执行用户回调。使用示例如下：
+```cpp
+#include <iostream>
+#include <optional>
+#include <memory>
+#include <fstream>
+#include <string>
+#include <NMEAParser.h>
+#include <unistd.h>
+
+int main() {
+    std::string rmcNmea = "$GNRMC,041704.000,A,2935.21718,N,10631.58906,E,0.00,172.39,071124,,,A*7E";
+    std::string gsvNmea= "$GPGSV,4,1,13,02,09,305,24,10,72,161,34,12,19,048,32,21,15,288,18*7A";
+
+    NmeaParser::NMEAParser parse;
+
+    std::cout << "--------------------" << std::endl;
+
+    parse.setParserCallback([](std::optional<NmeaParser::NMEAParser::NMEAData>& data) {
+        if (data && data->rmc) {
+            std::cout << data->rmc->latitude << std::endl;
+        }
+    });
+    parse.startParse(rmcNmea);
+
+    while(1){
+        sleep(1);
+    }
+
+    return 0;
+}
+```
+编译运行结果如下：
+```shell
+--------------------
+29.587
+```

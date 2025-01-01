@@ -12,6 +12,14 @@ set(SOURCE_FILES
 
 add_library(NMEAParser SHARED ${SOURCE_FILES})
 
+find_package(Threads REQUIRED)
+
+if(Threads_FOUND)
+    target_link_libraries(NMEAParser PRIVATE Threads::Threads)
+else()
+    message(FATAL_ERROR "Pthreads library not found. Please install Pthreads and try again.")
+endif()
+
 set(INSTALL_LIB_DIR "/usr/lib" CACHE PATH "Installation directory for libraries")
 set(INSTALL_INCLUDE_DIR "/usr/include" CACHE PATH "Installation directory for header files")
 
