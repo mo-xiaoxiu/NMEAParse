@@ -1,0 +1,10 @@
+# 测试程序
+find_package(GTest QUIET)
+if(GTest_FOUND)
+    add_executable(nmea_tests test_nmea.cpp)
+    target_link_libraries(nmea_tests NMEAParser GTest::GTest GTest::Main)
+    target_include_directories(nmea_tests PRIVATE ${CMAKE_SOURCE_DIR}/include)
+    add_test(NAME NMEAParserTests COMMAND nmea_tests)
+else()
+    message(WARNING "Google Test not found, skipping tests")
+endif() 

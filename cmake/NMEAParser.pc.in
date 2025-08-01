@@ -1,0 +1,13 @@
+prefix=@CMAKE_INSTALL_PREFIX@
+exec_prefix=${prefix}
+libdir=${prefix}/@CMAKE_INSTALL_LIBDIR@
+includedir=${prefix}/@CMAKE_INSTALL_INCLUDEDIR@
+
+Name: NMEAParser
+Description: NMEA Parser Library
+Version: @PROJECT_VERSION@
+URL: https://github.com/your-repo/NMEAParser
+Libs: -L${libdir} -lNMEAParser
+Cflags: -I${includedir}/NMEAParser
+Requires: 
+Libs.private: @CMAKE_THREAD_LIBS_INIT@ 

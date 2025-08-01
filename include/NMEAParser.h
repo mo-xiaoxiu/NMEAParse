@@ -1,6 +1,21 @@
 #ifndef NMEAPARSER_H
 #define NMEAPARSER_H
 
+// 导出宏定义
+#if defined(_WIN32) || defined(_WIN64)
+    #ifdef NMEAPARSER_EXPORTS
+        #define NMEAPARSER_API __declspec(dllexport)
+    #else
+        #define NMEAPARSER_API __declspec(dllimport)
+    #endif
+#else
+    #ifdef NMEAPARSER_EXPORTS
+        #define NMEAPARSER_API __attribute__((visibility("default")))
+    #else
+        #define NMEAPARSER_API
+    #endif
+#endif
+
 #include <memory>
 #include <string>
 #include <optional>
@@ -76,7 +91,7 @@ struct VTGData {
     // 其他VTG数据字段
 };
 
-class NMEAParser {
+class NMEAPARSER_API NMEAParser {
 public:
     struct NMEAData {
         std::string rawMessage;

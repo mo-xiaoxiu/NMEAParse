@@ -1,5 +1,5 @@
 # NMEAParse
-NMEAParse旨在C++应用中解析NMEA原始报文相关业务，方便地使用对象得出解析的定位信息。本项目需要根据指引编译成动态库，在用户的程序中只需要包含头文件并在编译时连接该动态库即可。
+NMEAParse旨在C++应用中解析NMEA原始报文相关业务，方便地使用对象得出解析的定位信息。本项目支持编译成静态库和动态库，并提供pkg-config支持。
 
 ## 功能
 
@@ -8,9 +8,19 @@ NMEAParse旨在C++应用中解析NMEA原始报文相关业务，方便地使用�
 ## 主要组件
 
 * `src/NMEAParser.cpp`和`include/NMEAParser.h`：这是 `NMEA` 消息解析器的实现部分，包含了消息解析的核心逻辑。
+* `CMakeLists.txt`：现代化的CMake构建系统，支持静态库、动态库和pkg-config。
 * `build.sh`：这是一个自动化编译脚本，自动配置和编译项目，便于开发者快速构建和运行测试。
 
 ## 构建和安装
+
+### 构建选项
+
+- `BUILD_SHARED_LIBS`: 构建动态库 (默认: ON)
+- `BUILD_STATIC_LIBS`: 构建静态库 (默认: ON)
+- `BUILD_EXAMPLES`: 构建示例程序 (默认: OFF)
+- `BUILD_TESTS`: 构建测试程序 (默认: OFF)
+
+### 方法一：使用CMake（推荐）
 
 1. 安装依赖项
 本项目依赖 `CMake`。如果你没有安装这些工具，按照以下步骤进行安装：
@@ -22,21 +32,131 @@ sudo apt-get install cmake
 ```
 
 2. 构建项目
-项目使用 `CMake` 进行构建。按照以下步骤来构建项目：
 
 克隆该项目：
 ```
 git clone https://github.com/yourusername/nmea-parser.git
+cd nmea-parser
 ```
+
+#### 构建所有库类型
+```bash
+mkdir build && cd build
+cmake ..
+make
+```
+
+#### 只构建静态库
+```bash
+mkdir build && cd build
+cmake -DBUILD_SHARED_LIBS=OFF -DBUILD_STATIC_LIBS=ON ..
+make
+```
+
+#### 只构建动态库
+```bash
+mkdir build && cd build
+cmake -DBUILD_SHARED_LIBS=ON -DBUILD_STATIC_LIBS=OFF ..
+make
+```
+
+#### 构建示例程序
+```bash
+mkdir build && cd build
+cmake -DBUILD_EXAMPLES=ON ..
+make
+```
+
+#### 构建测试程序
+```bash
+mkdir build && cd build
+cmake -DBUILD_TESTS=ON ..
+make
+```
+
+3. 安装
+
+#### 安装到系统目录
+```bash
+sudo make install
+```
+
+#### 安装到自定义目录
+```bash
+mkdir build && cd build
+cmake -DCMAKE_INSTALL_PREFIX=/path/to/install ..
+make
+make install
+```
+
+### 方法二：使用build.sh脚本
+
 运行自动化构建脚本：
-```
+```bash
 cd nmea-parser
 ./build.sh
 ```
+
+#### build.sh 选项
+
+```bash
+# 显示帮助信息
+./build.sh --help
+
+# 构建所有库类型（默认）
+./build.sh
+
+# 只构建动态库
+./build.sh --shared-only
+
+# 只构建静态库
+./build.sh --static-only
+
+# 构建所有库和示例程序
+./build.sh --examples
+
+# 构建所有库和测试程序
+./build.sh --tests
+
+# 安装到自定义路径
+./build.sh --prefix=/opt/local
+
+# 使用自定义构建目录
+./build.sh --build-dir=my_build
+
+# 清理构建目录
+./build.sh --clean
+```
+
 该脚本会：
-* 创建一个 build 目录，生成编译产物。
-* `CMake` 构建系统，该NMEA解析器会生成动态库和头文件。
-* 如果不指定`MY_INSTALL_PREFIX`作为安装动态库和头文件的路径，则默认把动态库和头文件安装到系统路径`/usr/lib`和`usr/include`下。可用过`export MY_INSTALL_PREFIX=`加上本地文件路径来指定动态库和头文件的安装路径。
+* 自动检查CMake和C++17编译器
+* 创建构建目录并配置CMake
+* 编译项目并显示构建结果
+* 可选择是否安装到系统
+* 提供详细的使用说明
+
+## 使用库
+
+### 使用CMake
+
+在你的CMakeLists.txt中：
+
+```cmake
+find_package(NMEAParser REQUIRED)
+target_link_libraries(your_target NMEAParser::NMEAParser_shared)
+# 或者使用静态库
+# target_link_libraries(your_target NMEAParser::NMEAParser_static)
+```
+
+### 使用pkg-config
+
+```bash
+# 编译
+g++ -o my_program my_program.cpp $(pkg-config --cflags --libs NMEAParser)
+
+# 或者手动指定
+g++ -o my_program my_program.cpp -I/usr/include/NMEAParser -lNMEAParser -lpthread
+```
 
 ## 使用示例
 
